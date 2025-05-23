@@ -153,6 +153,7 @@ class DocumentGenerator:
         self._balance_current = None
         self._balance_previous = None
         self._category_manager = category_manager
+        self._use_two_decimals = False  # Initialize precision flag
 
     def get_due_info(self, due_from_items, due_to_items, due_all_items, need_title=True):
         # Original calculation for due_final_curr, due_final_prev
@@ -185,14 +186,25 @@ class DocumentGenerator:
 
         # Calculate max
         due_final_max = max(due_final_curr, due_final_prev)
+        if self._use_two_decimals:
+            due_final_curr = round(due_final_curr, 2)
+            due_final_prev = round(due_final_prev, 2)
+            due_final_max = round(due_final_max, 2)
+        else:
+            due_final_curr = int(due_final_curr)
+            due_final_prev = int(due_final_prev)
+            due_final_max = int(due_final_max)
 
-        # Format values
-        due_final_curr_formatted = format_number(due_final_curr, is_cost_or_admin=False,
-                                                 is_liability=False) if due_final_curr != 0 else "-"
-        due_final_prev_formatted = format_number(due_final_prev, is_cost_or_admin=False,
-                                                 is_liability=False) if due_final_prev != 0 else "-"
-        due_final_max_formatted = format_number(due_final_max, is_cost_or_admin=False,
-                                                is_liability=False) if due_final_max != 0 else "-"
+        due_final_curr_formatted = format_number(
+            due_final_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+        ) if due_final_curr != 0 else "-"
+        due_final_prev_formatted = format_number(
+            due_final_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+        ) if due_final_prev != 0 else "-"
+        due_final_max_formatted = format_number(
+            due_final_max, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+        ) if due_final_max != 0 else "-"
+
         if due_final_curr == 0 and due_final_prev == 0:
             return {
                 'need_footnote': False,
@@ -334,6 +346,7 @@ class DocumentGenerator:
                 finance_costs_items= self._category_manager.categories['finance_costs_items'],
                 tax_items= self._category_manager.categories['tax_items']
             )
+            self._use_two_decimals = self._accountant_helper.use_two_decimals  # Set precision from DataLoader
             self._statement_current = self._accountant_helper.get_income_statement(current_year)
             self._balance_current = self._statement_current['BalanceSheet']
             self._statement_previous = self._accountant_helper.get_income_statement(current_year - 1)
@@ -475,19 +488,33 @@ class DocumentGenerator:
             "BRNo": br_no,
             "HasInventoriesCurr": self._has_inventories_curr,
             "HasDueToDirectorsCurr": self._due_to_directors_curr != 0,
-            "DueToDirectorsCurr": format_number(self._due_to_directors_curr, is_cost_or_admin=False, is_liability=False) if self._due_to_directors_curr != 0 else "-",
-            "DueToDirectorsCurrFn": format_number(self._due_to_directors_curr, is_cost_or_admin=False, is_liability=False, is_tax=True) if self._due_to_directors_curr != 0 else "-",
+            "DueToDirectorsCurr": format_number(
+                self._due_to_directors_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if self._due_to_directors_curr != 0 else "-",
+            "DueToDirectorsCurrFn": format_number(
+                self._due_to_directors_curr, is_cost_or_admin=False, is_liability=False, is_tax=True, use_two_decimals=self._use_two_decimals
+            ) if self._due_to_directors_curr != 0 else "-",
             "HasDueFromDirectorsCurr": self._has_due_from_directors_curr,
-            "DueFromDirectorsCurr": format_number(self._due_from_directors_curr, is_cost_or_admin=False, is_liability=False) if self._due_from_directors_curr != 0 else "-",
-            "DueFromDirectorsCurrFn": format_number(self._due_from_directors_curr, is_cost_or_admin=False, is_liability=False, is_tax=True) if self._due_from_directors_curr != 0 else "-",
-            "InventoriesCurr": format_number(self._inventories_curr, is_cost_or_admin=False, is_liability=False) if self._inventories_curr != 0 else "-",
+            "DueFromDirectorsCurr": format_number(
+                self._due_from_directors_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if self._due_from_directors_curr != 0 else "-",
+            "DueFromDirectorsCurrFn": format_number(
+                self._due_from_directors_curr, is_cost_or_admin=False, is_liability=False, is_tax=True, use_two_decimals=self._use_two_decimals
+            ) if self._due_from_directors_curr != 0 else "-",
+            "InventoriesCurr": format_number(
+                self._inventories_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if self._inventories_curr != 0 else "-",
             "HasSubsidiary": self._has_subsidiary,
             "AuditFirmInEnglishPlacehoder": audit_firm,
             "ApprovalDatePlaceholder": approval_date,
             "AuditorNamePlaceholder": auditor_name,
             "AuditorLicenseNoPlaceholder": auditor_license,
-            "SharesCurr": format_number(shares_curr, is_cost_or_admin=False, is_liability=False),
-            "SharesPrev": format_number(shares_prev, is_cost_or_admin=False, is_liability=False),
+            "SharesCurr": format_number(
+                shares_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ),
+            "SharesPrev": format_number(
+                shares_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ),
             "HasNameChanged": has_name_changed,
             "PassedDate": passed_date,
             "NewCompanyName": new_company_name,
@@ -638,6 +665,7 @@ class DocumentGenerator:
                 logger.info(f"Using trial balance file: {tb_file}")
                 self._accountant_helper = DataLoader(
                     excel_file=tb_file,
+                    first_year=first_year,
                     current_year=current_year,
                     non_current_assets=self._category_manager.categories['non_current_assets'],
                     current_assets=self._category_manager.categories['current_assets'],
@@ -652,6 +680,7 @@ class DocumentGenerator:
                     finance_costs_items=self._category_manager.categories['finance_costs_items'],
                     tax_items=self._category_manager.categories['tax_items']
                 )
+                self._use_two_decimals = self._accountant_helper.use_two_decimals  # Set precision from DataLoader
 
             statement_current = self._accountant_helper.get_income_statement(current_year)
             previous_year = current_year - 1
@@ -755,7 +784,7 @@ class DocumentGenerator:
             cash_bank = "-"
             for item in balance_current['current_assets']:
                 if item['name'] == "cash and bank balances":
-                    cash_bank = format_number(item['value'])
+                    cash_bank = format_number(item['value'], use_two_decimals=self._use_two_decimals)
                     break
             
             long_term_investments_curr = 0
@@ -769,6 +798,12 @@ class DocumentGenerator:
                     if item['name'] == "long-term investments":
                         long_term_investments_prev = item['value']
                         break
+            if self._use_two_decimals:
+                long_term_investments_curr = round(long_term_investments_curr, 2)
+                long_term_investments_prev = round(long_term_investments_prev, 2)
+            else:
+                long_term_investments_curr = int(long_term_investments_curr)
+                long_term_investments_prev = int(long_term_investments_prev)
 
             current_investment_curr = 0
             current_investment_prev = 0
@@ -781,27 +816,33 @@ class DocumentGenerator:
                     if item['name'] == "current investments":
                         current_investment_prev = item['value']
                         break
+            if self._use_two_decimals:
+                current_investment_curr = round(current_investment_curr, 2)
+                current_investment_prev = round(current_investment_prev, 2)
+            else:
+                current_investment_curr = int(current_investment_curr)
+                current_investment_prev = int(current_investment_prev)
 
             audit_fee_current = "-"
             audit_fee_previous = "-"
             for item in statement_current['GeneralAdminExpensesDetails']:
                 if item['name'] in ["audit fee", "auditors' remuneration"]:
-                    audit_fee_current = format_number(item['value'], is_cost_or_admin=False)
+                    audit_fee_current = format_number(item['value'], is_cost_or_admin=False, use_two_decimals=self._use_two_decimals)
                     break
             for item in statement_previous['GeneralAdminExpensesDetails']:
                 if item['name'] in ["audit fee", "auditors' remuneration"]:
-                    audit_fee_previous = format_number(item['value'], is_cost_or_admin=False)
+                    audit_fee_previous = format_number(item['value'], is_cost_or_admin=False, use_two_decimals=self._use_two_decimals)
                     break
 
             d_salary_curr = "-"
             d_salary_prev = "-"
             for item in statement_current['GeneralAdminExpensesDetails']:
                 if item['name'] in ["director's remuneration", "director’s remuneration"]:
-                    d_salary_curr = format_number(item['value'], is_cost_or_admin=False)
+                    d_salary_curr = format_number(item['value'], is_cost_or_admin=False, use_two_decimals=self._use_two_decimals)
                     break
             for item in statement_previous['GeneralAdminExpensesDetails']:
                 if item['name'] in ["director's remuneration", "director’s remuneration"]:
-                    d_salary_prev = format_number(item['value'], is_cost_or_admin=False)
+                    d_salary_prev = format_number(item['value'], is_cost_or_admin=False, use_two_decimals=self._use_two_decimals)
                     break
 
             benefit_current = 0
@@ -814,10 +855,18 @@ class DocumentGenerator:
             for item in statement_previous['GeneralAdminExpensesDetails']:
                 if item['name'] in ["director's remuneration", "director’s remuneration"]:
                     benefit_previous += item['value']
-                elif item['name'] == "salaries":
-                    benefit_previous += item['value']
-            benefit_current = format_number(benefit_current, is_cost_or_admin=False) if benefit_current != 0 else "-"
-            benefit_previous = format_number(benefit_previous, is_cost_or_admin=False) if benefit_previous != 0 else "-"
+            if self._use_two_decimals:
+                benefit_current = round(benefit_current, 2)
+                benefit_previous = round(benefit_previous, 2)
+            else:
+                benefit_current = int(benefit_current)
+                benefit_previous = int(benefit_previous)
+            benefit_current = format_number(
+                benefit_current, is_cost_or_admin=False, use_two_decimals=self._use_two_decimals
+            ) if benefit_current != 0 else "-"
+            benefit_previous = format_number(
+                benefit_previous, is_cost_or_admin=False, use_two_decimals=self._use_two_decimals
+            ) if benefit_previous != 0 else "-"
 
             due_from_director_curr = 0
             due_to_director_curr = 0
@@ -836,8 +885,18 @@ class DocumentGenerator:
                 if item['name'] == "inventories":
                     inventories_prev = item['value']
                     break
-            inventories_curr = format_number(inventories_curr, is_cost_or_admin=False, is_liability=False) if inventories_curr != 0 else "-"
-            inventories_prev = format_number(inventories_prev, is_cost_or_admin=False, is_liability=False) if inventories_prev != 0 else "-"
+            if self._use_two_decimals:
+                inventories_curr = round(inventories_curr, 2)
+                inventories_prev = round(inventories_prev, 2)
+            else:
+                inventories_curr = int(inventories_curr)
+                inventories_prev = int(inventories_prev)
+            inventories_curr = format_number(
+                inventories_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if inventories_curr != 0 else "-"
+            inventories_prev = format_number(
+                inventories_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if inventories_prev != 0 else "-"
 
             investment_in_sub_curr = 0
             investment_in_sub_prev = 0
@@ -853,8 +912,18 @@ class DocumentGenerator:
                 for item in balance_previous['non_current_assets']:
                     if item['name'] in subsidiary_items:
                         investment_in_sub_prev += item['value']
-            investment_in_sub_curr = format_number(investment_in_sub_curr, is_cost_or_admin=False, is_liability=False) if investment_in_sub_curr != 0 else "-"
-            investment_in_sub_prev = format_number(investment_in_sub_prev, is_cost_or_admin=False, is_liability=False) if investment_in_sub_prev != 0 else "-"
+            if self._use_two_decimals:
+                investment_in_sub_curr = round(investment_in_sub_curr, 2)
+                investment_in_sub_prev = round(investment_in_sub_prev, 2)
+            else:
+                investment_in_sub_curr = int(investment_in_sub_curr)
+                investment_in_sub_prev = int(investment_in_sub_prev)
+            investment_in_sub_curr = format_number(
+                investment_in_sub_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if investment_in_sub_curr != 0 else "-"
+            investment_in_sub_prev = format_number(
+                investment_in_sub_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if investment_in_sub_prev != 0 else "-"
 
             investment_in_asso_curr = 0
             investment_in_asso_prev = 0
@@ -865,8 +934,18 @@ class DocumentGenerator:
             for item in balance_previous['non_current_assets']:
                 if item['name'] in associate_items:
                     investment_in_asso_prev += item['value']
-            investment_in_asso_curr = format_number(investment_in_asso_curr, is_cost_or_admin=False, is_liability=False) if investment_in_asso_curr != 0 else "-"
-            investment_in_asso_prev = format_number(investment_in_asso_prev, is_cost_or_admin=False, is_liability=False) if investment_in_asso_prev != 0 else "-"
+            if self._use_two_decimals:
+                investment_in_asso_curr = round(investment_in_asso_curr, 2)
+                investment_in_asso_prev = round(investment_in_asso_prev, 2)
+            else:
+                investment_in_asso_curr = int(investment_in_asso_curr)
+                investment_in_asso_prev = int(investment_in_asso_prev)
+            investment_in_asso_curr = format_number(
+                investment_in_asso_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if investment_in_asso_curr != 0 else "-"
+            investment_in_asso_prev = format_number(
+                investment_in_asso_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if investment_in_asso_prev != 0 else "-"
 
             dividend_curr = 0
             dividend_prev = 0
@@ -877,10 +956,27 @@ class DocumentGenerator:
             for item in balance_previous['equity']:
                 if item['name'] in dividend_items:
                     dividend_prev += item['value']
+            if self._use_two_decimals:
+                dividend_curr = round(dividend_curr, 2)
+                dividend_prev = round(dividend_prev, 2)
+            else:
+                dividend_curr = int(dividend_curr)
+                dividend_prev = int(dividend_prev)
 
-            shares_gap_formatted = format_number(int(shares_curr) - int(shares_prev), is_cost_or_admin=False, is_liability=False)
-            shares_curr_formatted = format_number(shares_curr, is_cost_or_admin=False, is_liability=False)
-            shares_prev_formatted = format_number(shares_prev, is_cost_or_admin=False, is_liability=False)
+            shares_gap = float(shares_curr.replace(',', '')) - float(shares_prev.replace(',', ''))
+            if self._use_two_decimals:
+                shares_gap = round(shares_gap, 2)
+            else:
+                shares_gap = int(shares_gap)
+            shares_gap_formatted = format_number(
+                shares_gap, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
+            shares_curr_formatted = format_number(
+                shares_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
+            shares_prev_formatted = format_number(
+                shares_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
 
             shares_cap_curr = 0
             shares_cap_prev = 0
@@ -892,7 +988,15 @@ class DocumentGenerator:
                 if item['name'] == "share capital":
                     shares_cap_prev = item['value']
                     break
-            shares_cap_gap = int(shares_cap_curr) - int(shares_cap_prev)
+            shares_cap_gap = shares_cap_curr - shares_cap_prev
+            if self._use_two_decimals:
+                shares_cap_curr = round(shares_cap_curr, 2)
+                shares_cap_prev = round(shares_cap_prev, 2)
+                shares_cap_gap = round(shares_cap_gap, 2)
+            else:
+                shares_cap_curr = int(shares_cap_curr)
+                shares_cap_prev = int(shares_cap_prev)
+                shares_cap_gap = int(shares_cap_gap)
 
             for item in balance_current['current_assets']:
                 if item['name'] in ["amount due from a director", "amount due from the director", "amount due from director", "amount due from directors"]:
@@ -912,6 +1016,16 @@ class DocumentGenerator:
                 if item['name'] in ["amount due to a director", "amount due to the director", "amount due to director", "amount due to directors"]:
                     due_to_director_prev = -item['value']
                     break
+            if self._use_two_decimals:
+                due_from_director_curr = round(due_from_director_curr, 2)
+                due_to_director_curr = round(due_to_director_curr, 2)
+                due_from_director_prev = round(due_from_director_prev, 2)
+                due_to_director_prev = round(due_to_director_prev, 2)
+            else:
+                due_from_director_curr = int(due_from_director_curr)
+                due_to_director_curr = int(due_to_director_curr)
+                due_from_director_prev = int(due_from_director_prev)
+                due_to_director_prev = int(due_to_director_prev)
 
             if due_from_director_curr != 0:
                 due_curr = due_from_director_curr
@@ -927,10 +1041,20 @@ class DocumentGenerator:
                 due_max = max(due_curr, shares_cap_curr)
             else:
                 due_max = max(due_curr, due_prev)
+            if self._use_two_decimals:
+                due_max = round(due_max, 2)
+            else:
+                due_max = int(due_max)
 
-            due_curr = format_number(due_curr, is_cost_or_admin=False, is_liability=False) if due_curr != 0 else "-"
-            due_prev = format_number(due_prev, is_cost_or_admin=False, is_liability=False) if due_prev != 0 else "-"
-            due_max = format_number(due_max, is_cost_or_admin=False, is_liability=False) if due_max != 0 else "-"
+            due_curr = format_number(
+                due_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if due_curr != 0 else "-"
+            due_prev = format_number(
+                due_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if due_prev != 0 else "-"
+            due_max = format_number(
+                due_max, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            ) if due_max != 0 else "-"
 
             cap_res_curr = 0
             cap_res_prev = 0
@@ -943,9 +1067,21 @@ class DocumentGenerator:
                 if item['name'] in ["capital reserves", "reserves"]:
                     cap_res_prev = item['value']
                     break
-            cap_res_gap = int(cap_res_curr) - int(cap_res_prev)
-            cap_res_curr = format_number(cap_res_curr, is_cost_or_admin=False, is_liability=False)
-            cap_res_prev = format_number(cap_res_prev, is_cost_or_admin=False, is_liability=False)
+            cap_res_gap = cap_res_curr - cap_res_prev
+            if self._use_two_decimals:
+                cap_res_curr = round(cap_res_curr, 2)
+                cap_res_prev = round(cap_res_prev, 2)
+                cap_res_gap = round(cap_res_gap, 2)
+            else:
+                cap_res_curr = int(cap_res_curr)
+                cap_res_prev = int(cap_res_prev)
+                cap_res_gap = int(cap_res_gap)
+            cap_res_curr = format_number(
+                cap_res_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
+            cap_res_prev = format_number(
+                cap_res_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
 
             balance_before_current = self._accountant_helper._get_balance_before_period(current_year)
             balance_before_previous = self._accountant_helper._get_balance_before_period(previous_year)
@@ -954,7 +1090,12 @@ class DocumentGenerator:
 
             re_curr_num = balance_before_current + profit_for_year_current + dividend_curr 
             re_prev_num = balance_before_previous + profit_for_year_previous + dividend_prev
-
+            if self._use_two_decimals:
+                re_curr_num = round(re_curr_num, 2)
+                re_prev_num = round(re_prev_num, 2)
+            else:
+                re_curr_num = int(re_curr_num)
+                re_prev_num = int(re_prev_num)
 
             if self._first_year:
                 if re_curr_num >= 0:
@@ -974,21 +1115,49 @@ class DocumentGenerator:
                 else:
                     re_name_fn = "Accumulated loss"
 
-            re_curr = format_number(re_curr_num, is_cost_or_admin=False, is_liability=False)
-            re_prev = format_number(re_prev_num, is_cost_or_admin=False, is_liability=False)
+            re_curr = format_number(
+                re_curr_num, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
+            re_prev = format_number(
+                re_prev_num, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals
+            )
 
             total_equity_current = balance_current['total_equity'] + re_curr_num - dividend_curr
             total_equity_previous = balance_previous['total_equity'] + re_prev_num - dividend_prev
+            if self._use_two_decimals:
+                total_equity_current = round(total_equity_current, 2)
+                total_equity_previous = round(total_equity_previous, 2)
+            else:
+                total_equity_current = int(total_equity_current)
+                total_equity_previous = int(total_equity_previous)
             profit_current = abs(profit_for_year_current)
             equity_current = abs(total_equity_current)
+            if self._use_two_decimals:
+                profit_current = round(profit_current, 2)
+                equity_current = round(equity_current, 2)
+            else:
+                profit_current = int(profit_current)
+                equity_current = int(equity_current)
 
             re_total = re_prev_num + profit_for_year_current + dividend_curr
             re_total2 = total_equity_previous + cap_res_gap + profit_for_year_current + dividend_prev
+            if self._use_two_decimals:
+                re_total = round(re_total, 2)
+                re_total2 = round(re_total2, 2)
+            else:
+                re_total = int(re_total)
+                re_total2 = int(re_total2)
 
             if net_assets_current != total_equity_current:
                 logger.error(f"NetAssetsCurrent ({net_assets_current}) does not equal TotalEquityCurrent ({total_equity_current})")
                 raise NetAssetsEquityMismatchError(
                     f"NetAssetsCurrent ({net_assets_current}) does not equal TotalEquityCurrent ({total_equity_current}). Document generation aborted."
+                )
+
+            if net_assets_previous != total_equity_previous:
+                logger.error(f"NetAssetsPrevious ({net_assets_previous}) does not equal TotalEquityPrevious ({total_equity_previous})")
+                raise NetAssetsEquityMismatchError(
+                    f"NetAssetsPrevious ({net_assets_previous}) does not equal TotalEquityPrevious ({total_equity_previous}). Document generation aborted."
                 )
 
             due_final_holding_parent_company_info = self.get_due_info(self.due_from_final_holding_parent_company_items,
@@ -1069,8 +1238,8 @@ class DocumentGenerator:
                 logger.debug(f"Item: {name}, Footnote: '{fnnum}'")
                 non_current_assets_list.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value),
-                    'pr': format_number(prev_value),
+                    'cu': format_number(current_value, use_two_decimals=self._use_two_decimals) if current_value != 0 else "-",
+                    'pr': format_number(prev_value, use_two_decimals=self._use_two_decimals) if prev_value != 0 else "-",
                     'fnnum': fnnum,
                     'is_last': idx == len(non_current_asset_names) - 1
                 })
@@ -1089,8 +1258,8 @@ class DocumentGenerator:
                 logger.debug(f"Item: {name}, Footnote: '{fnnum}'")
                 current_assets_list.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value),
-                    'pr': format_number(prev_value),
+                    'cu': format_number(current_value, use_two_decimals=self._use_two_decimals) if current_value != 0 else "-",
+                    'pr': format_number(prev_value, use_two_decimals=self._use_two_decimals) if prev_value != 0 else "-",
                     'fnnum': fnnum,
                     'is_last': idx == len(current_asset_names) - 1
                 })
@@ -1109,8 +1278,8 @@ class DocumentGenerator:
                 logger.debug(f"Item: {name}, Footnote: '{fnnum}'")
                 current_liabilities_list.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value, is_liability=True),
-                    'pr': format_number(prev_value, is_liability=True),
+                    'cu': format_number(current_value, is_liability=True, use_two_decimals=self._use_two_decimals) if current_value != 0 else "-",
+                    'pr': format_number(prev_value, is_liability=True, use_two_decimals=self._use_two_decimals) if prev_value != 0 else "-",
                     'fnnum': fnnum,
                     'is_last': idx == len(current_liabilities_names) - 1
                 })
@@ -1129,8 +1298,8 @@ class DocumentGenerator:
                 logger.debug(f"Item: {name}, Footnote: '{fnnum}'")
                 non_current_liabilities_list.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value, is_liability=True),
-                    'pr': format_number(prev_value, is_liability=True),
+                    'cu': format_number(current_value, is_liability=True, use_two_decimals=self._use_two_decimals) if current_value != 0 else "-",
+                    'pr': format_number(prev_value, is_liability=True, use_two_decimals=self._use_two_decimals) if prev_value != 0 else "-",
                     'fnnum': fnnum,
                     'is_last': idx == len(non_current_liabilities_names) - 1
                 })
@@ -1158,8 +1327,8 @@ class DocumentGenerator:
                 logger.debug(f"Item: {name}, Footnote: '{fnnum}'")
                 equity_list.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value),
-                    'pr': format_number(prev_value),
+                    'cu': format_number(current_value, use_two_decimals=self._use_two_decimals) if current_value != 0 else "-",
+                    'pr': format_number(prev_value, use_two_decimals=self._use_two_decimals) if prev_value != 0 else "-",
                     'fnnum': fnnum,
                     'is_last': idx == len(sorted_equity_names) - 1
                 })
@@ -1185,15 +1354,15 @@ class DocumentGenerator:
                     self._closing_inventories_prev = previous_value
                     cost_items.append({
                         'name': name.capitalize(),
-                        'cu': format_number(current_value, is_tax=True),
-                        'pr': format_number(previous_value, is_tax=True),
+                        'cu': format_number(current_value, is_tax=True, use_two_decimals=self._use_two_decimals),
+                        'pr': format_number(previous_value, is_tax=True, use_two_decimals=self._use_two_decimals),
                         'is_last': idx == len(sorted_cost_item_names) - 1
                     })
                 else:
                     cost_items.append({
                         'name': name.capitalize(),
-                        'cu': format_number(current_value, is_cost_or_admin=True),
-                        'pr': format_number(previous_value, is_cost_or_admin=True),
+                        'cu': format_number(current_value, is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                        'pr': format_number(previous_value, is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
                         'is_last': idx == len(sorted_cost_item_names) - 1
                     })
 
@@ -1206,8 +1375,8 @@ class DocumentGenerator:
                 previous_value = next((item['value'] for item in turnover_previous if item['name'] == name), 0)
                 turnover_items.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value),
-                    'pr': format_number(previous_value),
+                    'cu': format_number(current_value, use_two_decimals=self._use_two_decimals),
+                    'pr': format_number(previous_value, use_two_decimals=self._use_two_decimals),
                     'is_last': idx == len(turnover_names) - 1
                 })
 
@@ -1220,8 +1389,8 @@ class DocumentGenerator:
                 previous_value = next((item['value'] for item in other_income_previous if item['name'] == name), 0)
                 other_income_items.append({
                     'name': name.capitalize(),
-                    'cu': format_number(current_value),
-                    'pr': format_number(previous_value),
+                    'cu': format_number(current_value, use_two_decimals=self._use_two_decimals),
+                    'pr': format_number(previous_value, use_two_decimals=self._use_two_decimals),
                     'is_last': idx == len(other_income_names) - 1
                 })
 
@@ -1233,13 +1402,13 @@ class DocumentGenerator:
                 current_value = next((item['value'] for item in general_admin_current if item['name'] == name), 0)
                 previous_value = next((item['value'] for item in general_admin_previous if item['name'] == name), 0)
                 if current_value > 0:
-                    current_value_fmt = format_number(current_value, is_cost_or_admin=True)
+                    current_value_fmt = format_number(current_value, is_cost_or_admin=True, use_two_decimals=self._use_two_decimals)
                 else:
-                    current_value_fmt = format_number(current_value, is_tax=True)
+                    current_value_fmt = format_number(current_value, is_tax=True, use_two_decimals=self._use_two_decimals)
                 if previous_value > 0:
-                    previous_value_fmt = format_number(previous_value, is_cost_or_admin=True)
+                    previous_value_fmt = format_number(previous_value, is_cost_or_admin=True, use_two_decimals=self._use_two_decimals)
                 else:
-                    previous_value_fmt = format_number(previous_value, is_tax=True)
+                    previous_value_fmt = format_number(previous_value, is_tax=True, use_two_decimals=self._use_two_decimals)
                 general_admin_expenses_items.append({
                     'name': name.capitalize(),
                     'cu': current_value_fmt,
@@ -1276,30 +1445,30 @@ class DocumentGenerator:
                 "FirstDirectorNamePlaceholder": first_director_name,
                 "BusinessType": self._business_type,
                 "RevenueName": revenue_name,
-                "RevenueCurrent": format_number(statement_current['Revenue']),
-                "CostSalesCurr": format_number(statement_current['CostOfSales'], is_cost_or_admin=True),
-                "CostSalesPrev": format_number(statement_previous['CostOfSales'], is_cost_or_admin=True),
-                "CostOfSalesCurrent": format_number(statement_current['CostOfSales'], is_cost_or_admin=True),
-                "GrossProfitCurrent": format_number(statement_current['GrossProfit']),
-                "OtherIncomeCurrent": format_number(statement_current['OtherIncome']),
-                "GeneralAdminExpensesCurrent": format_number(statement_current['GeneralAdminExpenses'], is_cost_or_admin=True),
-                "FinanceCostsCurrent": format_number(statement_current['FinanceCosts']),
-                "CalcTotalCurrent": format_number(statement_current['CalcTotal']),
-                "ProfitBeforeTaxCurrent": format_number(statement_current['ProfitBeforeTax']),
-                "TaxationCurrent": format_number(statement_current['Taxation']),
-                "TaxationCurrentFn": format_number(statement_current['Taxation'], is_tax=True),
-                "ProfitForYearCurrent": format_number(statement_current['ProfitForYear']),
-                "RevenuePrevious": format_number(statement_previous['Revenue']),
-                "CostOfSalesPrevious": format_number(statement_previous['CostOfSales'], is_cost_or_admin=True),
-                "GrossProfitPrevious": format_number(statement_previous['GrossProfit']),
-                "OtherIncomePrevious": format_number(statement_previous['OtherIncome']),
-                "GeneralAdminExpensesPrevious": format_number(statement_previous['GeneralAdminExpenses'], is_cost_or_admin=True),
-                "FinanceCostsPrevious": format_number(statement_previous['FinanceCosts']),
-                "CalcTotalPrevious": format_number(statement_previous['CalcTotal']),
-                "ProfitBeforeTaxPrevious": format_number(statement_previous['ProfitBeforeTax']),
-                "TaxationPrevious": format_number(statement_previous['Taxation']),
-                "TaxationPreviousFn": format_number(statement_previous['Taxation'], is_tax=True),
-                "ProfitForYearPrevious": format_number(statement_previous['ProfitForYear']),
+                "RevenueCurrent": format_number(statement_current['Revenue'], use_two_decimals=self._use_two_decimals),
+                "CostSalesCurr": format_number(statement_current['CostOfSales'], is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                "CostSalesPrev": format_number(statement_previous['CostOfSales'], is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                "CostOfSalesCurrent": format_number(statement_current['CostOfSales'], is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                "GrossProfitCurrent": format_number(statement_current['GrossProfit'], use_two_decimals=self._use_two_decimals),
+                "OtherIncomeCurrent": format_number(statement_current['OtherIncome'], use_two_decimals=self._use_two_decimals),
+                "GeneralAdminExpensesCurrent": format_number(statement_current['GeneralAdminExpenses'], is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                "FinanceCostsCurrent": format_number(statement_current['FinanceCosts'], use_two_decimals=self._use_two_decimals),
+                "CalcTotalCurrent": format_number(statement_current['CalcTotal'], use_two_decimals=self._use_two_decimals),
+                "ProfitBeforeTaxCurrent": format_number(statement_current['ProfitBeforeTax'], use_two_decimals=self._use_two_decimals),
+                "TaxationCurrent": format_number(statement_current['Taxation'], use_two_decimals=self._use_two_decimals),
+                "TaxationCurrentFn": format_number(statement_current['Taxation'], is_tax=True, use_two_decimals=self._use_two_decimals),
+                "ProfitForYearCurrent": format_number(statement_current['ProfitForYear'], use_two_decimals=self._use_two_decimals),
+                "RevenuePrevious": format_number(statement_previous['Revenue'], use_two_decimals=self._use_two_decimals),
+                "CostOfSalesPrevious": format_number(statement_previous['CostOfSales'], is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                "GrossProfitPrevious": format_number(statement_previous['GrossProfit'], use_two_decimals=self._use_two_decimals),
+                "OtherIncomePrevious": format_number(statement_previous['OtherIncome'], use_two_decimals=self._use_two_decimals),
+                "GeneralAdminExpensesPrevious": format_number(statement_previous['GeneralAdminExpenses'], is_cost_or_admin=True, use_two_decimals=self._use_two_decimals),
+                "FinanceCostsPrevious": format_number(statement_previous['FinanceCosts'], use_two_decimals=self._use_two_decimals),
+                "CalcTotalPrevious": format_number(statement_previous['CalcTotal'], use_two_decimals=self._use_two_decimals),
+                "ProfitBeforeTaxPrevious": format_number(statement_previous['ProfitBeforeTax'], use_two_decimals=self._use_two_decimals),
+                "TaxationPrevious": format_number(statement_previous['Taxation'], use_two_decimals=self._use_two_decimals),
+                "TaxationPreviousFn": format_number(statement_previous['Taxation'], is_tax=True, use_two_decimals=self._use_two_decimals),
+                "ProfitForYearPrevious": format_number(statement_previous['ProfitForYear'], use_two_decimals=self._use_two_decimals),
                 "PLBFTName": plbft_name,
                 "PLName": pl_name,
                 "PLNameCurr": pl_name_curr,
@@ -1310,20 +1479,20 @@ class DocumentGenerator:
                 "current_liabilities": current_liabilities_list,
                 "non_current_liabilities": non_current_liabilities_list,
                 "equity": equity_list,
-                "TotalNonCurrentAssetsCurrent": format_number(balance_current['total_non_current_assets']),
-                "TotalNonCurrentAssetsPrevious": format_number(balance_previous['total_non_current_assets']),
-                "TotalCurrentAssetsCurrent": format_number(balance_current['total_current_assets']),
-                "TotalCurrentAssetsPrevious": format_number(balance_previous['total_current_assets']),
-                "TotalCurrentLiabilitiesCurrent": format_number(balance_current['total_current_liabilities'], is_liability=True),
-                "TotalCurrentLiabilitiesPrevious": format_number(balance_previous['total_current_liabilities'], is_liability=True),
-                "TotalNonCurrentLiabilitiesCurrent": format_number(balance_current['total_non_current_liabilities'], is_liability=True),
-                "TotalNonCurrentLiabilitiesPrevious": format_number(balance_previous['total_non_current_liabilities'], is_liability=True),
-                "NetAssetsCurrent": format_number(balance_current['net_assets']),
-                "NetAssetsPrevious": format_number(balance_previous['net_assets']),
-                "TotalEquityCurrent": format_number(total_equity_current), #format_number(balance_current['total_equity'] + re_curr_num),
-                "TotalEquityPrevious": format_number(total_equity_previous), #format_number(balance_previous['total_equity'] + re_prev_num),
-                "ProfitCurrent": format_number(profit_current, is_cost_or_admin=False, is_liability=False),
-                "EquityCurrent": format_number(equity_current, is_cost_or_admin=False, is_liability=False),
+                "TotalNonCurrentAssetsCurrent": format_number(balance_current['total_non_current_assets'], use_two_decimals=self._use_two_decimals),
+                "TotalNonCurrentAssetsPrevious": format_number(balance_previous['total_non_current_assets'], use_two_decimals=self._use_two_decimals),
+                "TotalCurrentAssetsCurrent": format_number(balance_current['total_current_assets'], use_two_decimals=self._use_two_decimals),
+                "TotalCurrentAssetsPrevious": format_number(balance_previous['total_current_assets'], use_two_decimals=self._use_two_decimals),
+                "TotalCurrentLiabilitiesCurrent": format_number(balance_current['total_current_liabilities'], is_liability=True, use_two_decimals=self._use_two_decimals),
+                "TotalCurrentLiabilitiesPrevious": format_number(balance_previous['total_current_liabilities'], is_liability=True, use_two_decimals=self._use_two_decimals),
+                "TotalNonCurrentLiabilitiesCurrent": format_number(balance_current['total_non_current_liabilities'], is_liability=True, use_two_decimals=self._use_two_decimals),
+                "TotalNonCurrentLiabilitiesPrevious": format_number(balance_previous['total_non_current_liabilities'], is_liability=True, use_two_decimals=self._use_two_decimals),
+                "NetAssetsCurrent": format_number(balance_current['net_assets'], use_two_decimals=self._use_two_decimals),
+                "NetAssetsPrevious": format_number(balance_previous['net_assets'], use_two_decimals=self._use_two_decimals),
+                "TotalEquityCurrent": format_number(total_equity_current, use_two_decimals=self._use_two_decimals), #format_number(balance_current['total_equity'] + re_curr_num),
+                "TotalEquityPrevious": format_number(total_equity_previous, use_two_decimals=self._use_two_decimals), #format_number(balance_previous['total_equity'] + re_prev_num),
+                "ProfitCurrent": format_number(profit_current, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals),
+                "EquityCurrent": format_number(equity_current, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals),
                 "NetAssetsName": net_assets_name,
                 "turnover_items": turnover_items,
                 "cost_items": cost_items,
@@ -1350,16 +1519,16 @@ class DocumentGenerator:
                 "SharesCurr": shares_curr_formatted,
                 "SharesPrev": shares_prev_formatted,
                 "SharesGap": shares_gap_formatted,
-                "SharesCapCurr": format_number(shares_cap_curr),
-                "SharesCapPrev": format_number(shares_cap_prev),
-                "SharesCapGap": format_number(shares_cap_gap),
+                "SharesCapCurr": format_number(shares_cap_curr, use_two_decimals=self._use_two_decimals),
+                "SharesCapPrev": format_number(shares_cap_prev, use_two_decimals=self._use_two_decimals),
+                "SharesCapGap": format_number(shares_cap_gap, use_two_decimals=self._use_two_decimals),
                 "CapResCurr": cap_res_curr,
                 "CapResPrev": cap_res_prev,
-                "CapResGap": format_number(cap_res_gap),
+                "CapResGap": format_number(cap_res_gap, use_two_decimals=self._use_two_decimals),
                 "RECurr": re_curr,
                 "REPrev": re_prev,
-                "RETotal": format_number(re_total),
-                "RETotal2": format_number(re_total2),
+                "RETotal": format_number(re_total, use_two_decimals=self._use_two_decimals),
+                "RETotal2": format_number(re_total2, use_two_decimals=self._use_two_decimals),
                 "REName": re_name,
                 "RENameFn": re_name_fn,
                 "HasNameChanged": has_name_changed,
@@ -1420,15 +1589,15 @@ class DocumentGenerator:
                 "DueShareholderCurr": due_shareholder_info['curr'],
                 "DueShareholderPrev": due_shareholder_info['prev'], #due_shareholder_prev,
                 "DueShareholderMax": due_shareholder_info['max'], #due_shareholder_max,
-                "DividendCurr": format_number(dividend_curr, is_cost_or_admin=False, is_liability=False) if dividend_curr != 0 else "-",
-                "DividendPrev": format_number(dividend_prev, is_cost_or_admin=False, is_liability=False) if dividend_prev != 0 else "-",
+                "DividendCurr": format_number(dividend_curr, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals) if dividend_curr != 0 else "-",
+                "DividendPrev": format_number(dividend_prev, is_cost_or_admin=False, is_liability=False, use_two_decimals=self._use_two_decimals) if dividend_prev != 0 else "-",
                 "InvestmentInCompany": investment_in_company,
                 "InvestmentInSecurity": investment_in_security,
                 "Opinion": audit_opinion,
-                "LongTermInvestmentCurr": format_number(long_term_investments_curr),
-                "LongTermInvestmentPrev": format_number(long_term_investments_prev),
-                "CurrentInvestmentCurr": format_number(current_investment_curr),
-                "CurrentInvestmentPrev": format_number(current_investment_prev),
+                "LongTermInvestmentCurr": format_number(long_term_investments_curr, use_two_decimals=self._use_two_decimals),
+                "LongTermInvestmentPrev": format_number(long_term_investments_prev, use_two_decimals=self._use_two_decimals),
+                "CurrentInvestmentCurr": format_number(current_investment_curr, use_two_decimals=self._use_two_decimals),
+                "CurrentInvestmentPrev": format_number(current_investment_prev, use_two_decimals=self._use_two_decimals),
                 "HasDueFromUltimateHoldingCompany": due_ultimate_holding_company_info['need_footnote'],
                 "HasDueToUltimateHoldingCompany2": due_ultimate_holding_company_info['both_to'],
                 "DueFromUltimateHoldingCompanyName": due_ultimate_holding_company_info['title_name'],
@@ -1447,7 +1616,7 @@ class DocumentGenerator:
             logger.debug(f"SubsidiaryName: {data['SubsidiaryName']}")
             excluded_fields = [
                 "DueFromShareHolderName", "CompanyNameInChinesePlaceholder", "bizAdditionalDesc",
-                "DueFinalParentName", "DueImmeParentName", "DueFromShareHolderName", "SubsidiaryName"
+                "DueFinalParentName", "DueImmeParentName", "DueFromShareHolderName", "SubsidiaryName", "ApprovalDatePlaceholder"
             ]
             if not self._first_year:
                 excluded_fields.extend(["DateOfIncorporation", "CYear"])
