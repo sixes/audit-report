@@ -848,12 +848,10 @@ class DocumentGenerator:
             benefit_current = 0
             benefit_previous = 0
             for item in statement_current['GeneralAdminExpensesDetails']:
-                if item['name'] in ["director's remuneration", "director’s remuneration"]:
-                    benefit_current += item['value']
-                elif item['name'] == "salaries":
+                if item['name'] in ["director's remuneration", "director’s remuneration", "salaries"]:
                     benefit_current += item['value']
             for item in statement_previous['GeneralAdminExpensesDetails']:
-                if item['name'] in ["director's remuneration", "director’s remuneration"]:
+                if item['name'] in ["director's remuneration", "director’s remuneration", "salaries"]:
                     benefit_previous += item['value']
             if self._use_two_decimals:
                 benefit_current = round(benefit_current, 2)
@@ -1416,6 +1414,20 @@ class DocumentGenerator:
                     'is_last': idx == len(general_admin_names) - 1
                 })
 
+            finance_costs_items = []
+            finance_costs_current = statement_current['FinanceCostsDetails']
+            finance_costs_previous = statement_previous['FinanceCostsDetails']
+            finance_costs_names = sorted(set(item['name'] for item in finance_costs_current + finance_costs_previous))
+            for idx, name in enumerate(finance_costs_names):
+                current_value = next((item['value'] for item in finance_costs_current if item['name'] == name), 0)
+                previous_value = next((item['value'] for item in finance_costs_previous if item['name'] == name), 0)
+                finance_costs_items.append({
+                    'name': name.capitalize(),
+                    'cu': format_number(current_value, use_two_decimals=self._use_two_decimals),
+                    'pr': format_number(previous_value, use_two_decimals=self._use_two_decimals),
+                    'is_last': idx == len(finance_costs_names) - 1
+                })
+
             show_gross_profit = statement_current['GrossProfit'] != 0 or statement_previous['GrossProfit'] != 0
             logger.debug(f'cost_items: {cost_items}')
             data = {
@@ -1503,6 +1515,7 @@ class DocumentGenerator:
                 "other_income_items": other_income_items,
                 "show_other_income": len(other_income_items) > 0,
                 "general_admin_expenses_items": general_admin_expenses_items,
+                "finance_costs_items": finance_costs_items,
                 "show_negative_net_assets": net_assets_current < 0,
                 "cash_bank": cash_bank,
                 "AuditFeeCurrent": audit_fee_current,
