@@ -219,6 +219,7 @@ class DataLoader:
         cost_items_details = []
         other_income_details = []
         general_admin_expenses_details = []
+        finance_costs_details = []
 
         balance_sheet = {
             'non_current_assets': [],
@@ -290,7 +291,12 @@ class DataLoader:
                         'value': debtor
                     })
             elif item in finance_costs_items_lower:
-                finance_costs += debtor
+                finance_costs -= debtor
+                if debtor != 0:
+                    finance_costs_details.append({
+                        'name': item,
+                        'value': -debtor
+                    })
 
             if item in non_current_assets_lower:
                 idx = non_current_assets_lower.index(item)
@@ -384,7 +390,7 @@ class DataLoader:
         cost_of_sales += closing_inv
         gross_profit = revenue - cost_of_sales
         calc_total = gross_profit + other_income
-        profit_before_tax = calc_total - general_admin_expenses - finance_costs
+        profit_before_tax = calc_total - general_admin_expenses + finance_costs
         profit_for_year = profit_before_tax + taxation
 
         # Apply precision to derived values
@@ -427,7 +433,8 @@ class DataLoader:
             "RevenueItemsDetails": revenue_items_details,
             "CostItemsDetails": cost_items_details,
             "OtherIncomeDetails": other_income_details,
-            "GeneralAdminExpensesDetails": general_admin_expenses_details
+            "GeneralAdminExpensesDetails": general_admin_expenses_details,
+            "FinanceCostsDetails": finance_costs_details
         }
 
     def get_income_statement(self, year):
