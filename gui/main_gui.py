@@ -53,7 +53,7 @@ class AuditReportGUI(tk.Tk):
         self.additional_business_description = tk.StringVar(value="")
         self.br_no = tk.StringVar(value="")
         self.last_day_of_year = tk.StringVar(value=f"31 December {self.current_year}")
-        self.date_of_incorporation = tk.StringVar(value=f"31 December {self.previous_year}")
+        self.date_of_incorporation = tk.StringVar(value="")
         self.audit_firm = tk.StringVar(value="Deloitte")
         self.approval_date = tk.StringVar(value="")
         self.auditor_name = tk.StringVar(value="Auditor Name")
@@ -255,8 +255,8 @@ class AuditReportGUI(tk.Tk):
             self.currency_full_desc.set("United States dollars (US$)")
         elif currency_choice == "RMB":
             self.currency.set("RMB")
-            self.currency_desc.set("Renminbi")
-            self.currency_full_desc.set("Renminbi (¥)")
+            self.currency_desc.set("Renminbi Yuan")
+            self.currency_full_desc.set("Renminbi Yuan(RMB)")
 
     def on_year_change(self, *args):
         try:
